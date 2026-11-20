@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flur-Planer 3D — Spiegelwand, Garderobe &amp; Bauanleitung</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --panel: rgba(20, 23, 30, 0.94);
+      --panel-border: rgba(255, 255, 255, 0.09);
+      --card: rgba(255, 255, 255, 0.045);
+      --text: #eef1f6;
+      --muted: #9aa3b2;
+      --accent: #7c9cff;
+      --accent-2: #a98bff;
+      --ok: #3ddc97;
+      --warn: #ffb84d;
+      --danger: #ff6b6b;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+
+    #app { display: flex; width: 100vw; height: 100vh; }
+
+    /* Sidebar */
+    #sidebar {
+      width: 390px; min-width: 340px; max-width: 440px;
+      height: 100vh; background: var(--panel);
+      border-right: 1px solid var(--panel-border);
+      display: flex; flex-direction: column;
+      z-index: 10; backdrop-filter: blur(12px);
+      transition: transform 0.25s ease;
+    }
+    #sidebar.collapsed { transform: translateX(-100%); position: absolute; }
+
+    .header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+    .header .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .tabs {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 4px; padding: 8px 12px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .tab-btn {
+      background: transparent; color: var(--muted);
+      border: 1px solid transparent; border-radius: 7px;
+      padding: 7px 6px; cursor: pointer; font-weight: 600; font-size: 12px;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--card); }
+    .tab-btn.active {
+      color: #fff; background: rgba(124, 156, 255, 0.18);
+      border-color: rgba(124, 156, 255, 0.45);
+    }
+
+    .tab-content {
+      flex: 1; overflow-y: auto; padding: 12px 14px 24px;
+      display: none;
+    }
+    .tab-content.active { display: block; }
+    .tab-content::-webkit-scrollbar { width: 6px; }
+    .tab-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    .status-banner {
+      padding: 9px 11px; border-radius: var(--radius);
+      margin-bottom: 12px; font-size: 12px; line-height: 1.4;
+      border: 1px solid transparent;
+    }
+    .status-banner.ok {
+      background: rgba(61, 220, 151, 0.1);
+      border-color: rgba(61, 220, 151, 0.35);
+      color: #b7f7d8;
+    }
+    .status-banner.warn {
+      background: rgba(255, 184, 77, 0.12);
+      border-color: rgba(255, 184, 77, 0.45);
+      color: #ffe0ad;
+    }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      margin-bottom: 11px;
+    }
+    .section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.7px; color: var(--accent);
+      margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .control { margin-bottom: 9px; }
+    .control:last-child { margin-bottom: 0; }
+    .control-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 4px; font-size: 12px;
+    }
+    .control-val {
+      font-family: ui-monospace, Consolas, monospace;
+      color: var(--accent); font-weight: 600; font-size: 12px;
+    }
+    input[type="range"] {
+      width: 100%; accent-color: var(--accent); cursor: pointer; height: 5px;
+    }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 0; font-size: 12px;
+    }
+    .toggle-row input[type="checkbox"] {
+      width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer;
+    }
+    input[type="color"] {
+      width: 34px; height: 24px; border: none; background: transparent; cursor: pointer;
+    }
+
+    .btn {
+      background: rgba(124, 156, 255, 0.16);
+      color: var(--text); border: 1px solid rgba(124, 156, 255, 0.35);
+      border-radius: 7px; padding: 7px 10px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .btn:hover { background: rgba(124, 156, 255, 0.28); }
+    .btn.primary { background: var(--accent); color: #0c101b; border-color: var(--accent); }
+    .btn.primary:hover { filter: brightness(1.08); }
+    .btn.ghost { background: var(--card); border-color: var(--panel-border); color: var(--muted); }
+    .btn.ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+    /* Viewport */
+    #viewport-wrap { flex: 1; position: relative; overflow: hidden; }
+    #canvas-container { width: 100%; height: 100%; }
+
+    .hud-top {
+      position: absolute; top: 12px; left: 12px; right: 12px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: none; gap: 8px;
+    }
+    .hud-group {
+      display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto;
+    }
+    .hud-pill {
+      background: rgba(17, 20, 27, 0.82); backdrop-filter: blur(8px);
+      border: 1px solid var(--panel-border); color: var(--text);
+      border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .hud-pill:hover { border-color: var(--accent); color: #fff; }
+    .hud-pill.active { background: rgba(124, 156, 255, 0.25); border-color: var(--accent); }
+
+    .hud-bottom {
+      position: absolute; bottom: 12px; left: 12px; right: 12px;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      pointer-events: none;
+    }
+    .legend {
+      background: rgba(17, 20, 27, 0.82); backdrop-filter: blur(8px);
+      border: 1px solid var(--panel-border); border-radius: 8px;
+      padding: 8px 11px; font-size: 11px; color: var(--muted);
+      pointer-events: auto; line-height: 1.5;
+    }
+    .legend b { color: var(--text); }
+
+    /* BOM Table */
+    table.bom {
+      width: 100%; border-collapse: collapse; font-size: 11.5px;
+    }
+    table.bom th, table.bom td {
+      padding: 6px 5px; border-bottom: 1px solid var(--panel-border);
+      text-align: left; vertical-align: top;
+    }
+    table.bom th { color: var(--muted); font-weight: 600; font-size: 11px; }
+    table.bom td.num { text-align: right; font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+    .bom-total {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 10px; padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.16);
+      font-weight: 700; font-size: 13px;
+    }
+
+    /* Guide steps */
+    .step-card {
+      background: var(--card); border: 1px solid var(--panel-border);
+      border-radius: 8px; padding: 10px 11px; margin-bottom: 9px;
+    }
+    .step-num {
+      display: inline-block; background: rgba(124,156,255,0.2); color: var(--accent);
+      border-radius: 5px; padding: 1px 6px; font-weight: 700; font-size: 11px;
+      margin-right: 6px;
+    }
+    .step-card h4 { font-size: 12.5px; margin-bottom: 5px; }
+    .step-card p, .step-card li { font-size: 12px; color: #cfd6e3; line-height: 1.48; }
+    .step-card ul { padding-left: 16px; margin-top: 4px; }
+    .tip-box {
+      background: rgba(255, 184, 77, 0.1); border-left: 3px solid var(--warn);
+      padding: 8px 10px; border-radius: 0 7px 7px 0; margin-top: 6px;
+      font-size: 11.5px; color: #ffe3b5; line-height: 1.45;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="header">
+      <div>
+        <h1>Flur-Planer 3D</h1>
+        <div class="sub">Spiegelwand · Garderobe · Stückliste · Bauanleitung</div>
+      </div>
+      <button class="btn ghost" id="btnReset" title="Standardwerte wiederherstellen">Reset</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-design">1. Maße &amp; 3D</button>
+      <button class="tab-btn" data-tab="tab-bom">2. Einkaufsliste</button>
+      <button class="tab-btn" data-tab="tab-guide">3. Bauanleitung</button>
+    </div>
+
+    <!-- TAB 1: DESIGN -->
+    <div class="tab-content active" id="tab-design">
+      <div id="fitBanner" class="status-banner ok"></div>
+
+      <div class="section">
+        <div class="section-title">
+          <span>Konstruktion &amp; Explosion</span>
+          <span style="color:var(--muted);font-weight:500;">Schichten prüfen</span>
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Explosionsansicht (Schichten trennen)</span>
+            <span class="control-val" id="valExplode">0 %</span>
+          </div>
+          <input type="range" id="inExplode" min="0" max="100" step="1" value="0" />
+        </div>
+        <div class="toggle-row">
+          <span>Abend-Modus (LED-Wirkung testen)</span>
+          <input type="checkbox" id="inEveningMode" />
+        </div>
+        <div style="margin-top:6px;margin-bottom:4px;font-size:11px;color:var(--muted);font-weight:600;">LED-POSITIONEN (KOMBINIERBAR):</div>
+        <div class="row-2" style="gap:4px 12px;">
+          <label class="toggle-row" style="padding:3px 0;cursor:pointer;"><span>Oben</span><input type="checkbox" id="inLedTop" checked /></label>
+          <label class="toggle-row" style="padding:3px 0;cursor:pointer;"><span>Links</span><input type="checkbox" id="inLedLeft" /></label>
+          <label class="toggle-row" style="padding:3px 0;cursor:pointer;"><span>Rechts</span><input type="checkbox" id="inLedRight" /></label>
+          <label class="toggle-row" style="padding:3px 0;cursor:pointer;"><span>Unten</span><input type="checkbox" id="inLedBottom" /></label>
+        </div>
+        <label class="toggle-row" style="padding:3px 0;cursor:pointer;">
+          <span>Zwischen den Spiegeln (bei Fuge &gt; 0)</span>
+          <input type="checkbox" id="inLedBetween" />
+        </label>
+        <div class="toggle-row" style="margin-top:4px;">
+          <span>Türen öffnen (Kollisionscheck)</span>
+          <input type="checkbox" id="inDoorsOpen" />
+        </div>
+        <div class="toggle-row">
+          <span>Eingangs- &amp; Seitenwände ausblenden (Cutaway)</span>
+          <input type="checkbox" id="inCutaway" checked />
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>Spiegel- &amp; Garderobenwand</span></div>
+        <div class="control">
+          <div class="control-head">
+            <span>Spiegelbreite (je Spiegel, 3 Stück)</span>
+            <span class="control-val" id="valMirrorW">55 cm</span>
+          </div>
+          <input type="range" id="inMirrorW" min="40" max="75" step="1" value="55" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Spiegelhöhe (bündig Türzarge oben)</span>
+            <span class="control-val" id="valMirrorH">170 cm</span>
+          </div>
+          <input type="range" id="inMirrorH" min="140" max="190" step="1" value="170" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Fuge zwischen Spiegeln</span>
+            <span class="control-val" id="valMirrorGap">1.5 cm</span>
+          </div>
+          <input type="range" id="inMirrorGap" min="0" max="6" step="0.5" value="1.5" />
+          <div class="row-3" style="margin-top:5px;">
+            <button class="btn ghost gap-preset" data-gap="0" style="padding:4px 4px;font-size:11px;">0 cm (Ohne)</button>
+            <button class="btn ghost gap-preset" data-gap="1.5" style="padding:4px 4px;font-size:11px;">1,5 cm</button>
+            <button class="btn ghost gap-preset" data-gap="4" style="padding:4px 4px;font-size:11px;">4 cm</button>
+          </div>
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Spalt zur Glastür-Zarge (links)</span>
+            <span class="control-val" id="valDoorGap">0 cm</span>
+          </div>
+          <input type="range" id="inDoorGap" min="0" max="15" step="0.5" value="0" />
+          <div class="row-2" style="margin-top:5px;">
+            <button class="btn ghost doorgap-preset" data-dgap="0" style="padding:4px 4px;font-size:11px;">0 cm (Kein Spalt)</button>
+            <button class="btn ghost doorgap-preset" data-dgap="4" style="padding:4px 4px;font-size:11px;">4 cm (LED-Spalt)</button>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span>Durchgehende weiße Platte (Tür bis rechte Wand)</span>
+          <input type="checkbox" id="inFullWidthPanel" />
+        </div>
+        <div class="toggle-row">
+          <span>Dekorplatte bis ganz runter zum Boden</span>
+          <input type="checkbox" id="inFullHeightPanel" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Haken-Dekorplatte Breite (rechts)</span>
+            <span class="control-val" id="valHookW">34 cm</span>
+          </div>
+          <input type="range" id="inHookW" min="20" max="70" step="1" value="34" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Anzahl schwarze Haken</span>
+            <span class="control-val" id="valHookCount">3 Stk</span>
+          </div>
+          <input type="range" id="inHookCount" min="2" max="6" step="1" value="3" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Latten-Rücksprung oben (für LED)</span>
+            <span class="control-val" id="valBattenInset">4.0 cm</span>
+          </div>
+          <input type="range" id="inBattenInset" min="2" max="8" step="0.5" value="4" />
+        </div>
+        <div class="toggle-row">
+          <span>Weiße Ablage über den Haken</span>
+          <input type="checkbox" id="inShelfOn" checked />
+        </div>
+        <div class="toggle-row">
+          <span>Akzentwand-Farbe (Grau + leichter Lila-Stich)</span>
+          <input type="color" id="inWallColor" value="#8d8793" />
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>Raummaße (anpassbar)</span></div>
+        <div class="control">
+          <div class="control-head">
+            <span>Raumbreite (X)</span>
+            <span class="control-val" id="valRoomW">370 cm</span>
+          </div>
+          <input type="range" id="inRoomW" min="320" max="460" step="5" value="370" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Raumtiefe (Z)</span>
+            <span class="control-val" id="valRoomD">200 cm</span>
+          </div>
+          <input type="range" id="inRoomD" min="160" max="260" step="5" value="200" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Raumhöhe (Y)</span>
+            <span class="control-val" id="valRoomH">250 cm</span>
+          </div>
+          <input type="range" id="inRoomH" min="230" max="320" step="5" value="250" />
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <span>Oberkante Glastür-Zarge</span>
+            <span class="control-val" id="valZargeTop">205 cm</span>
+          </div>
+          <input type="range" id="inZargeTop" min="198" max="220" step="1" value="205" />
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>Vorhandene Möbel</span></div>
+        <div class="toggle-row">
+          <span>Sitzbank Cashmere (130 × 45 cm)</span>
+          <input type="checkbox" id="inBenchOn" checked />
+        </div>
+        <div class="toggle-row">
+          <span>JYSK BILLUND 3+3 (153 × 39 × 74 cm)</span>
+          <input type="checkbox" id="inDresserOn" checked />
+        </div>
+        <div class="toggle-row">
+          <span>Hochschrank links (200 cm, Glanz + Spiegel)</span>
+          <input type="checkbox" id="inTallCabinetOn" checked />
+        </div>
+        <div class="toggle-row">
+          <span>Schuhschrank zw. Eingang &amp; Küche (30 cm tief)</span>
+          <input type="checkbox" id="inShoeCabinetOn" checked />
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: BOM -->
+    <div class="tab-content" id="tab-bom">
+      <div class="section">
+        <div class="section-title">
+          <span>Dynamische Einkaufs- &amp; Stückliste</span>
+          <button class="btn ghost" id="btnCopyBom" style="padding:3px 8px;font-size:11px;">Kopieren</button>
+        </div>
+        <p style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">
+          Alle Zuschnittmaße &amp; Mengen aktualisieren sich automatisch, wenn du im Tab „Maße &amp; 3D“ etwas änderst.
+        </p>
+        <table class="bom" id="bomTable">
+          <thead>
+            <tr>
+              <th>Position &amp; Maß</th>
+              <th class="num">Menge</th>
+              <th class="num">ca. €</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="bom-total">
+          <span>Geschätzte Gesamtkosten (Wandkonstrukt)</span>
+          <span id="bomSum" style="color:var(--ok);">0 €</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>Werkzeug-Checkliste</span></div>
+        <ul style="padding-left:16px;font-size:12px;color:#cfd6e3;line-height:1.6;">
+          <li>Kreuzlinienlaser oder lange Wasserwaage (mind. 120 cm)</li>
+          <li>Bohrhammer / Schlagbohrmaschine + 6 mm Stein-/Betonbohrer</li>
+          <li>Akkuschrauber + Torx-Bits + 3 mm Holzbohrer (Vorbohren!)</li>
+          <li>Kartuschenpresse (für Spiegelkleber)</li>
+          <li>Farbrolle (Kurzflor), Abklebeband (Frogtape), Abdeckfolie</li>
+          <li>Schleifpapier (180er), Kantenband/Bügeleisen (falls Zuschnittkanten offen)</li>
+          <li>Zollstock, Bleistift, 2–3 mm Abstandskeile / Unterlegklötzchen</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- TAB 3: GUIDE -->
+    <div class="tab-content" id="tab-guide">
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 1</span>Wand abkleben &amp; streichen</h4>
+        <p>Streiche die gesamte gegenüberliegende Wand im gewünschten <b>Grau mit leichtem Lila-Stich</b> (2 Anstriche, nass-in-nass arbeiten).</p>
+        <div class="tip-box"><b>Tipp:</b> Türzarge der Glastür, Decke und Fußleiste sauber mit Goldband/Frogtape abkleben und das Band abziehen, solange der 2. Anstrich noch leicht feucht ist.</div>
+      </div>
+
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 2</span>Referenzlinie an der Türzarge abnehmen</h4>
+        <p>Lege den Laser/die Wasserwaage exakt an die <b>Oberkante der Wohnzimmer-Türzarge</b> an und ziehe eine dünne Bleistiftlinie über die Wand. Das ist die exakte Oberkante aller 3 Spiegel und der weißen Dekorplatten.</p>
+      </div>
+
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 3</span>10 mm Unterkonstruktion montieren</h4>
+        <ul>
+          <li>Schneide die 10 mm starken Latten (z.B. 10 × 40 mm gehobelte Leisten) zu.</li>
+          <li>Setze die <b>oberste Querlatte ca. 4 cm unterhalb der Referenzlinie</b> an — so entsteht dahinter die perfekte Schattenfuge für die LED-Leiste!</li>
+          <li>Seitlich die Latten ebenfalls 2–3 cm nach innen versetzen, damit man sie von der Seite nicht sieht.</li>
+          <li>Mit <b>6×50 mm Dübeln (z.B. Fischer DuoPower)</b> und passenden Senkkopfschrauben (4,5×45 mm) lotrecht an der Wand befestigen.</li>
+        </ul>
+        <div class="tip-box"><b>Worauf aufpassen:</b> Wand auf Unebenheiten prüfen! Falls die Wand hohl/bauchig ist, dünne Verglasungsklötze (1–3 mm) unter die Latten legen, damit alle Platten exakt in einer Ebene liegen.</div>
+      </div>
+
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 4</span>LED-Leiste &amp; Stromversorgung verlegen</h4>
+        <p>Klebe das Alu-LED-Profil (mit Opal-Diffusor) oben auf die Rückseite der weißen Dekorplatten oder auf die Oberkante der zurückversetzten Querlatte, sodass das Licht <b>nach oben an die graue Wand</b> abstrahlt.</p>
+        <div class="tip-box"><b>Kabel-Versteck:</b> Den kleinen LED-Trafo (12V/24V) kannst du unsichtbar hinter der Sitzbank oder im Hohlraum ganz unten links/rechts verstauen und das Kabel hinter den 10 mm Latten hochführen.</div>
+      </div>
+
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 5</span>12 mm weiße Dekor-Spanplatten anschrauben</h4>
+        <ul>
+          <li>Kanten der Zuschnittplatten beim Baumarkt direkt mit <b>ABS-/Melaminkante weiß</b> bekleben lassen (sieht 10× sauberer aus!).</li>
+          <li>Platten exakt an der Referenzlinie ausrichten und mit <b>3,5×20 mm Schrauben</b> (Länge beachten: 12 mm Platte + 10 mm Latte = 22 mm!) auf den Latten verschrauben.</li>
+          <li><b>Schraubenköpfe versenken</b>, denn im Bereich der Spiegel liegen sie später komplett verdeckt unter dem Spiegelglas!</li>
+        </ul>
+      </div>
+
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 6</span>3 Spiegel aufkleben</h4>
+        <ul>
+          <li>Unterkante mit provisorischer Hilfsleiste oder Stützklötzen abstützen, damit der Spiegel beim Aushärten nicht nach unten rutscht.</li>
+          <li><b>WICHTIG:</b> Ausschließlich <b>neutralvernetzenden Spiegelkleber</b> (z.B. Ottoseal S16 / Pattex Spiegel) verwenden — niemals normales Essigsilikon, das zerfrisst die Spiegelschicht!</li>
+          <li>Kleber in <b>senkrechten Raupen</b> (alle ca. 10–12 cm, nicht vollflächig, nicht als geschlossener Kreis) auftragen, damit Feuchtigkeit zirkulieren kann.</li>
+          <li>Mit <b>doppelseitigem Spiegelklebeband (1–2 mm)</b> zwischen den Raupen für sofortige Anfangshaftung sorgen. 24 h abstützen.</li>
+        </ul>
+      </div>
+
+      <div class="step-card">
+        <h4><span class="step-num">Schritt 7</span>Schwarze Haken &amp; weiße Ablage montieren</h4>
+        <p>Auf der rechten weißen Dekorplatte (bündig zur Spiegel-Oberkante) die schwarzen Haken vorbohren (3 mm) und verschrauben. Falls du die <b>Ablage</b> darüber baust: mit verdeckten Tablarträgern oder kleinen weißen/schwarzen Winkeln direkt durch die Dekorplatte bis in die Wand/Unterkonstruktion verankern (für höhere Traglast).</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 3D VIEWPORT -->
+  <main id="viewport-wrap">
+    <div id="canvas-container"></div>
+
+    <div class="hud-top">
+      <div class="hud-group">
+        <button class="hud-pill" id="btnToggleSidebar">☰ Menü</button>
+        <button class="hud-pill active" data-cam="entry">Eingangstür</button>
+        <button class="hud-pill" data-cam="front">Spiegelwand</button>
+        <button class="hud-pill" data-cam="detail">Detail Bank &amp; Haken</button>
+        <button class="hud-pill" data-cam="top">Grundriss 3D</button>
+        <button class="hud-pill" data-cam="explode">Schicht-Detail</button>
+      </div>
+      <div class="hud-group">
+        <button class="hud-pill" id="btnSnapshot">📸 PNG-Snapshot</button>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="legend">
+        <b>Steuerung:</b> Links ziehen = Drehen · Rechts ziehen = Verschieben · Mausrad = Zoom<br />
+        <b>Orientierung:</b> Vorne = Eingang &amp; Küche · Links = Bad · Hinten = Wohnzimmer-Glastür + 3 Spiegel + Bank · Rechts = MALM-Kommode
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+  // ---------------- STATE ----------------
+  const DEFAULTS = {
+    roomW: 3.70,
+    roomD: 2.00,
+    roomH: 2.50,
+    zargeTop: 2.05,
+    mirrorW: 0.55,     // Standard 55 cm, damit 3x55 + Fugen + 34 cm Haken sauber in die 205 cm rechts der Glastür passen
+    mirrorH: 1.70,
+    mirrorGap: 0.015,
+    doorGap: 0.0,
+    hookW: 0.34,
+    hookCount: 3,
+    battenInset: 0.04,
+    shelfOn: true,
+    ledTop: true,
+    ledLeft: false,
+    ledRight: false,
+    ledBottom: false,
+    ledBetween: false,
+    eveningMode: false,
+    fullWidthPanel: false,
+    fullHeightPanel: false,
+    doorsOpen: false,
+    cutaway: true,
+    explode: 0,
+    wallColor: '#8d8793',
+    benchOn: true,
+    dresserOn: true,
+    tallCabinetOn: true,
+    shoeCabinetOn: true
+  };
+  const state = { ...DEFAULTS };
+
+  // ---------------- THREE SETUP ----------------
+  const container = document.getElementById('canvas-container');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#13161d');
+
+  const camera = new THREE.PerspectiveCamera(48, container.clientWidth / container.clientHeight, 0.05, 40);
+  camera.position.set(2.85, 1.55, 2.55);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
+  container.appendChild(renderer.domElement);
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.55;
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
+  controls.target.set(2.35, 1.15, 0.2);
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minDistance = 0.4;
+  controls.maxDistance = 9;
+
+  // ---------------- PROCEDURAL TEXTURES ----------------
+  function createWoodFloorTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#b99672';
+    ctx.fillRect(0, 0, 512, 512);
+    const planks = 8;
+    const ph = 512 / planks;
+    for (let i = 0; i < planks; i++) {
+      const shade = (Math.random() - 0.5) * 18;
+      ctx.fillStyle = `rgb(${182 + shade}, ${148 + shade * 0.85}, ${112 + shade * 0.7})`;
+      ctx.fillRect(0, i * ph, 512, ph - 2);
+      // subtle grain
+      ctx.strokeStyle = 'rgba(90, 60, 35, 0.08)';
+      for (let g = 0; g < 14; g++) {
+        ctx.beginPath();
+        const y = i * ph + Math.random() * ph;
+        ctx.moveTo(0, y);
+        ctx.lineTo(512, y + (Math.random() - 0.5) * 3);
+        ctx.stroke();
+      }
+      // plank joint
+      ctx.fillStyle = 'rgba(65, 45, 25, 0.35)';
+      ctx.fillRect(0, (i + 1) * ph - 2, 512, 2);
+      const xSplit = ((i * 173) % 420) + 40;
+      ctx.fillRect(xSplit, i * ph, 2, ph);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3.2, 2.0);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  function createRibbedGlassNormal() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    const ctx = c.getContext('2d');
+    for (let x = 0; x < 256; x++) {
+      const v = Math.sin((x / 256) * Math.PI * 2 * 24);
+      const r = Math.floor(128 + v * 95);
+      ctx.fillStyle = `rgb(${r}, 128, 240)`;
+      ctx.fillRect(x, 0, 1, 256);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  function createLedGlowTexture() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 256, 0, 0);
+    grad.addColorStop(0.0, 'rgba(255, 232, 185, 0.92)');
+    grad.addColorStop(0.25, 'rgba(255, 224, 168, 0.42)');
+    grad.addColorStop(0.65, 'rgba(255, 215, 155, 0.08)');
+    grad.addColorStop(1.0, 'rgba(255, 215, 155, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  const floorTex = createWoodFloorTexture();
+  const ribbedNormal = createRibbedGlassNormal();
+  const ledGlowTex = createLedGlowTexture();
+
+  // ---------------- MATERIALS ----------------
+  const mats = {
+    floor: new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.62, metalness: 0.05 }),
+    wallWhite: new THREE.MeshStandardMaterial({ color: 0xf4f3ef, roughness: 0.92 }),
+    wallAccent: new THREE.MeshStandardMaterial({ color: new THREE.Color(state.wallColor), roughness: 0.88 }),
+    ceiling: new THREE.MeshStandardMaterial({ color: 0xfafaf8, roughness: 0.95 }),
+    skirting: new THREE.MeshStandardMaterial({ color: 0xf8f8f6, roughness: 0.5 }),
+    doorWhite: new THREE.MeshStandardMaterial({ color: 0xfafaf8, roughness: 0.38 }),
+    doorZarge: new THREE.MeshStandardMaterial({ color: 0xf6f6f3, roughness: 0.42 }),
+    metalHandle: new THREE.MeshStandardMaterial({ color: 0xd0d4dc, metalness: 0.85, roughness: 0.25 }),
+    clearGlass: new THREE.MeshPhysicalMaterial({
+      color: 0xe6f2f2, transmission: 0.78, opacity: 1, transparent: true,
+      roughness: 0.08, ior: 1.5, thickness: 0.012
+    }),
+    ribbedGlass: new THREE.MeshPhysicalMaterial({
+      color: 0xeaf0f4, transmission: 0.55, opacity: 1, transparent: true,
+      roughness: 0.32, normalMap: ribbedNormal, normalScale: new THREE.Vector2(1.4, 0.2)
+    }),
+    cashmere: new THREE.MeshStandardMaterial({ color: 0xd1c7bc, roughness: 0.52, metalness: 0.04 }),
+    cashmereDark: new THREE.MeshStandardMaterial({ color: 0xb2a79b, roughness: 0.65 }),
+    travertine: new THREE.MeshStandardMaterial({ color: 0xded8ce, roughness: 0.68, metalness: 0.03 }),
+    travertineFront: new THREE.MeshStandardMaterial({ color: 0xd8cfc6, roughness: 0.46, metalness: 0.03 }),
+    travertineShadow: new THREE.MeshStandardMaterial({ color: 0xa69d93, roughness: 0.78 }),
+    decorWhite: new THREE.MeshStandardMaterial({ color: 0xf8f8f5, roughness: 0.38 }),
+    whiteGloss: new THREE.MeshPhysicalMaterial({
+      color: 0xfbfbfa, roughness: 0.12, metalness: 0.03, clearcoat: 0.9, clearcoatRoughness: 0.08
+    }),
+    whiteGlossGroove: new THREE.MeshStandardMaterial({ color: 0xd0d3d8, roughness: 0.65 }),
+    battenWood: new THREE.MeshStandardMaterial({ color: 0xd7b384, roughness: 0.82 }),
+    mirror: new THREE.MeshPhysicalMaterial({
+      color: 0xeef3f7, metalness: 0.95, roughness: 0.04, clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 1.35
+    }),
+    mirrorEdge: new THREE.MeshStandardMaterial({ color: 0xaabcc2, metalness: 0.4, roughness: 0.25 }),
+    hookBlack: new THREE.MeshStandardMaterial({ color: 0x1c1d21, metalness: 0.55, roughness: 0.38 }),
+    ledStrip: new THREE.MeshStandardMaterial({ color: 0xfff0cc, emissive: 0xffd28a, emissiveIntensity: 3.0 }),
+    ledOff: new THREE.MeshStandardMaterial({ color: 0xb8bec8, roughness: 0.4, metalness: 0.5 }),
+    ledGlow: new THREE.MeshBasicMaterial({ map: ledGlowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+    dimLine: new THREE.LineBasicMaterial({ color: 0x7c9cff })
+  };
+
+  // ---------------- LIGHTING ----------------
+  const hemi = new THREE.HemisphereLight(0xfffaf2, 0x4b4844, 0.85);
+  scene.add(hemi);
+
+  const mainLight = new THREE.DirectionalLight(0xfff9ef, 1.1);
+  mainLight.position.set(1.5, 4.2, 2.2);
+  mainLight.castShadow = true;
+  mainLight.shadow.mapSize.set(2048, 2048);
+  mainLight.shadow.camera.near = 0.5;
+  mainLight.shadow.camera.far = 12;
+  mainLight.shadow.camera.left = -4;
+  mainLight.shadow.camera.right = 4;
+  mainLight.shadow.camera.top = 4;
+  mainLight.shadow.camera.bottom = -4;
+  mainLight.shadow.bias = -0.0005;
+  scene.add(mainLight);
+
+  const ceilingSpot1 = new THREE.PointLight(0xfff5e4, 1.3, 7, 1.6);
+  ceilingSpot1.position.set(1.1, 2.38, 1.0);
+  scene.add(ceilingSpot1);
+
+  const ceilingSpot2 = new THREE.PointLight(0xfff5e4, 1.3, 7, 1.6);
+  ceilingSpot2.position.set(2.7, 2.38, 1.0);
+  scene.add(ceilingSpot2);
+
+  // ---------------- ROOT GROUPS ----------------
+  const rootGroup = new THREE.Group();
+  scene.add(rootGroup);
+
+  let doorPivots = [];
+  let targetDoorFactor = 0;
+  let currentDoorFactor = 0;
+
+  // Helper: create box with shadow
+  function makeBox(w, h, d, mat, x, y, z) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  // Helper: wall segment with optional door cutout
+  function buildWallWithOpenings(length, height, thickness, openings, mat) {
+    // openings: [{ start, end, top }] sorted by start
+    const g = new THREE.Group();
+    const sorted = [...openings].sort((a, b) => a.start - b.start);
+    let cursor = 0;
+    for (const op of sorted) {
+      if (op.start > cursor) {
+        const segW = op.start - cursor;
+        g.add(makeBox(segW, height, thickness, mat, cursor + segW / 2, height / 2, 0));
+      }
+      const opW = op.end - op.start;
+      const topH = height - op.top;
+      if (topH > 0.01) {
+        g.add(makeBox(opW, topH, thickness, mat, op.start + opW / 2, op.top + topH / 2, 0));
+      }
+      cursor = op.end;
+    }
+    if (cursor < length) {
+      const segW = length - cursor;
+      g.add(makeBox(segW, height, thickness, mat, cursor + segW / 2, height / 2, 0));
+    }
+    return g;
+  }
+
+  // Helper: Door assembly
+  function buildDoor({ width, height, wallThick, type, openDir, hingeSide }) {
+    // Local coords: X = 0..width, Y = 0..height, Z = 0 (wall center)
+    const g = new THREE.Group();
+    const frameW = 0.055;
+    const frameD = wallThick + 0.025;
+
+    // Zarge left, right, top
+    g.add(makeBox(frameW, height, frameD, mats.doorZarge, frameW / 2, height / 2, 0));
+    g.add(makeBox(frameW, height, frameD, mats.doorZarge, width - frameW / 2, height / 2, 0));
+    g.add(makeBox(width, frameW, frameD, mats.doorZarge, width / 2, height - frameW / 2, 0));
+
+    const leafW = width - frameW * 1.4;
+    const leafH = height - frameW * 0.8;
+    const leafT = type === 'glass' ? 0.012 : 0.04;
+
+    const pivot = new THREE.Group();
+    const hingeX = hingeSide === 'left' ? frameW * 0.7 : width - frameW * 0.7;
+    const dirSign = hingeSide === 'left' ? 1 : -1;
+    pivot.position.set(hingeX, 0, openDir > 0 ? wallThick / 2 : -wallThick / 2);
+
+    if (type === 'glass') {
+      const glass = makeBox(leafW, leafH, leafT, mats.clearGlass, dirSign * leafW / 2, leafH / 2, 0);
+      glass.castShadow = false;
+      pivot.add(glass);
+      // minimal satin horizontal stripes for visual clarity
+      for (const yFrac of [0.35, 0.5, 0.65]) {
+        const stripe = makeBox(leafW - 0.02, 0.015, leafT + 0.002, mats.doorZarge, dirSign * leafW / 2, leafH * yFrac, 0);
+        stripe.castShadow = false;
+        pivot.add(stripe);
+      }
+      // handle
+      const hx = dirSign * (leafW - 0.08);
+      pivot.add(makeBox(0.11, 0.022, 0.08, mats.metalHandle, hx, 1.02, 0));
+    } else if (type === 'entry') {
+      // White entry door with vertical ribbed glass window
+      const winW = 0.24, winH = 1.15;
+      const cx = dirSign * leafW / 2;
+      const sideW = (leafW - winW) / 2;
+      const botH = 0.55;
+      const topH = leafH - botH - winH;
+      pivot.add(makeBox(leafW, botH, leafT, mats.doorWhite, cx, botH / 2, 0));
+      pivot.add(makeBox(leafW, topH, leafT, mats.doorWhite, cx, botH + winH + topH / 2, 0));
+      pivot.add(makeBox(sideW, winH, leafT, mats.doorWhite, cx - winW / 2 - sideW / 2, botH + winH / 2, 0));
+      pivot.add(makeBox(sideW, winH, leafT, mats.doorWhite, cx + winW / 2 + sideW / 2, botH + winH / 2, 0));
+      const glass = makeBox(winW, winH, 0.014, mats.ribbedGlass, cx, botH + winH / 2, 0);
+      glass.castShadow = false;
+      pivot.add(glass);
+      const hx = dirSign * (leafW - 0.08);
+      pivot.add(makeBox(0.11, 0.022, 0.11, mats.metalHandle, hx, 1.02, 0));
+    } else {
+      pivot.add(makeBox(leafW, leafH, leafT, mats.doorWhite, dirSign * leafW / 2, leafH / 2, 0));
+      const hx = dirSign * (leafW - 0.08);
+      pivot.add(makeBox(0.11, 0.022, 0.11, mats.metalHandle, hx, 1.02, 0));
+    }
+
+    const maxAngle = (hingeSide === 'left' ? -1 : 1) * openDir * (Math.PI * 0.44);
+    doorPivots.push({ pivot, maxAngle });
+    g.add(pivot);
+    return g;
+  }
+
+  // ---------------- REBUILD SCENE ----------------
+  function rebuildScene() {
+    while (rootGroup.children.length) rootGroup.remove(rootGroup.children[0]);
+    doorPivots = [];
+
+    mats.wallAccent.color.set(state.wallColor);
+
+    // Adjust ambient lighting for Evening Mode (to evaluate indirect LEDs realistically)
+    if (state.eveningMode) {
+      hemi.intensity = 0.24;
+      mainLight.intensity = 0.22;
+      ceilingSpot1.intensity = 0.28;
+      ceilingSpot2.intensity = 0.28;
+      scene.environmentIntensity = 0.22;
+      renderer.toneMappingExposure = 1.0;
+    } else {
+      hemi.intensity = 0.85;
+      mainLight.intensity = 1.1;
+      ceilingSpot1.intensity = 1.3;
+      ceilingSpot2.intensity = 1.3;
+      scene.environmentIntensity = 0.55;
+      renderer.toneMappingExposure = 1.08;
+    }
+
+    const W = state.roomW;
+    const D = state.roomD;
+    const H = state.roomH;
+    const wt = 0.12; // wall thickness
+    const zargeTop = state.zargeTop;
+
+    // 1. Floor
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mats.floor);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(W / 2, 0, D / 2);
+    floor.receiveShadow = true;
+    rootGroup.add(floor);
+
+    // Subtle ground grid outside room
+    const basePlate = new THREE.Mesh(
+      new THREE.PlaneGeometry(W + 3.5, D + 3.5),
+      new THREE.MeshStandardMaterial({ color: 0x181c24, roughness: 0.95 })
+    );
+    basePlate.rotation.x = -Math.PI / 2;
+    basePlate.position.set(W / 2, -0.005, D / 2);
+    rootGroup.add(basePlate);
+
+    // Door coordinates along X (South & North walls)
+    const entryRight = W - 0.20;
+    const entryLeft = entryRight - 0.90;
+    const kitchenRight = entryLeft - 1.00;
+    const kitchenLeft = Math.max(0.12, kitchenRight - 0.90);
+
+    // Living room glass door is EXACTLY opposite kitchen door
+    const glassLeft = kitchenLeft;
+    const glassRight = kitchenRight;
+
+    // Bathroom door centered on West wall (X = 0)
+    const bathW = 0.80;
+    const bathStart = D / 2 - bathW / 2;
+    const bathEnd = D / 2 + bathW / 2;
+
+    // 2. North Wall (Z = 0) — ACCENT WALL (Grey + slight purple tint)
+    const northWall = buildWallWithOpenings(W, H, wt, [
+      { start: glassLeft, end: glassRight, top: zargeTop }
+    ], mats.wallAccent);
+    northWall.position.set(0, 0, -wt / 2);
+    rootGroup.add(northWall);
+
+    // Skirting board on North wall (excluding door)
+    if (glassLeft > 0.05) {
+      rootGroup.add(makeBox(glassLeft, 0.06, 0.015, mats.skirting, glassLeft / 2, 0.03, 0.0075));
+    }
+    const rightNorthW = W - glassRight;
+    if (rightNorthW > 0.05) {
+      rootGroup.add(makeBox(rightNorthW, 0.06, 0.015, mats.skirting, glassRight + rightNorthW / 2, 0.03, 0.0075));
+    }
+
+    // Living room glass door (opens into hallway: +Z)
+    const glassDoor = buildDoor({
+      width: glassRight - glassLeft, height: zargeTop, wallThick: wt,
+      type: 'glass', openDir: 1, hingeSide: 'left'
+    });
+    glassDoor.position.set(glassLeft, 0, -wt / 2);
+    rootGroup.add(glassDoor);
+
+    // 3. West Wall (X = 0, Bathroom)
+    const westWall = buildWallWithOpenings(D, H, wt, [
+      { start: bathStart, end: bathEnd, top: zargeTop }
+    ], mats.wallWhite);
+    westWall.rotation.y = -Math.PI / 2;
+    westWall.position.set(-wt / 2, 0, 0);
+    if (!state.cutaway) rootGroup.add(westWall);
+    else {
+      // Low cutaway wall (35 cm) + door frame hint so user sees bathroom door location
+      const lowWest = buildWallWithOpenings(D, 0.35, wt, [{ start: bathStart, end: bathEnd, top: 0.35 }], mats.wallWhite);
+      lowWest.rotation.y = -Math.PI / 2;
+      lowWest.position.set(-wt / 2, 0, 0);
+      rootGroup.add(lowWest);
+    }
+
+    const bathDoor = buildDoor({
+      width: bathW, height: state.cutaway ? 0.35 : zargeTop, wallThick: wt,
+      type: 'standard', openDir: 1, hingeSide: 'left'
+    });
+    bathDoor.rotation.y = -Math.PI / 2;
+    bathDoor.position.set(-wt / 2, 0, bathStart);
+    if (!state.cutaway) rootGroup.add(bathDoor);
+
+    // 4. East Wall (X = W, right short wall — where bench ends & dresser stands)
+    const eastWall = makeBox(wt, H, D, mats.wallWhite, W + wt / 2, H / 2, D / 2);
+    rootGroup.add(eastWall);
+    rootGroup.add(makeBox(0.015, 0.06, D, mats.skirting, W - 0.0075, 0.03, D / 2));
+
+    // 5. South Wall (Z = D, Entry + Kitchen)
+    if (!state.cutaway) {
+      const southWall = buildWallWithOpenings(W, H, wt, [
+        { start: kitchenLeft, end: kitchenRight, top: zargeTop },
+        { start: entryLeft, end: entryRight, top: zargeTop }
+      ], mats.wallWhite);
+      southWall.position.set(0, 0, D + wt / 2);
+      rootGroup.add(southWall);
+
+      const kitchenDoor = buildDoor({
+        width: 0.90, height: zargeTop, wallThick: wt,
+        type: 'standard', openDir: -1, hingeSide: 'right'
+      });
+      kitchenDoor.position.set(kitchenLeft, 0, D + wt / 2);
+      rootGroup.add(kitchenDoor);
+
+      const entryDoor = buildDoor({
+        width: 0.90, height: zargeTop, wallThick: wt,
+        type: 'entry', openDir: 1, hingeSide: 'right'
+      });
+      entryDoor.position.set(entryLeft, 0, D + wt / 2);
+      rootGroup.add(entryDoor);
+    } else {
+      // Subtle floor threshold markers for Entry & Kitchen doors
+      const lowSouth = buildWallWithOpenings(W, 0.18, wt, [
+        { start: kitchenLeft, end: kitchenRight, top: 0.18 },
+        { start: entryLeft, end: entryRight, top: 0.18 }
+      ], mats.wallWhite);
+      lowSouth.position.set(0, 0, D + wt / 2);
+      rootGroup.add(lowSouth);
+    }
+
+    // 6. WALL CONSTRUCTION (Battens 10mm + LED + 12mm White Decor Panels + 3 Mirrors + Hook Panel + Shelf)
+    const ex = state.explode / 100; // 0..1
+    const zBatten = 0.005 + ex * 0.12;        // center of 10 mm batten
+    const zPanel  = 0.010 + 0.006 + ex * 0.28; // center of 12 mm decor panel
+    const zMirror = 0.022 + 0.002 + ex * 0.44; // center of 4 mm mirror
+    const zHooks  = 0.022 + ex * 0.44;
+
+    const startX = glassRight + state.doorGap; // 0 = directly flush with glass door frame (no grey gap!)
+    const availW = W - startX;
+    const mirrorH = state.mirrorH;
+    const mirrorW = state.mirrorW;
+    const gap = state.mirrorGap;
+    const hookW = state.hookW;
+    const topY = zargeTop;
+    const botY = topY - mirrorH;
+    const midY = (topY + botY) / 2;
+
+    const totalMirrorsW = 3 * mirrorW + 2 * gap;
+    const totalConstructW = totalMirrorsW + gap + hookW;
+
+    // Fit check banner
+    const banner = document.getElementById('fitBanner');
+    const diffCm = Math.round((availW - totalConstructW) * 100);
+    if (diffCm >= 0) {
+      banner.className = 'status-banner ok';
+      banner.innerHTML = `<b>Passt perfekt!</b> Verfügbar rechts der Glastür: <b>${Math.round(availW*100)} cm</b> · Konstrukt: <b>${Math.round(totalConstructW*100)} cm</b> (${diffCm} cm Reserve bis rechte Wand).`;
+    } else {
+      banner.className = 'status-banner warn';
+      banner.innerHTML = `<b>Achtung Engpass (${Math.abs(diffCm)} cm zu breit!):</b> Rechts der Glastür sind nur <b>${Math.round(availW*100)} cm</b> Platz, dein Konstrukt braucht <b>${Math.round(totalConstructW*100)} cm</b>. Reduziere Spiegel-/Hakenbreite oder passe die Raumbreite an.`;
+    }
+
+    // Build 3 Mirror Units + Hook Panel (supports individual panels OR full-width continuous panel, and full-height to floor)
+    const insetTop = state.battenInset;
+    const insetSide = (state.ledLeft || state.ledRight) ? Math.max(0.035, state.battenInset) : 0.025;
+    const insetBot = state.ledBottom ? Math.max(0.035, state.battenInset) : 0.025;
+    const battenW = 0.04;
+
+    // If fullHeightPanel + ledBottom are both on, leave a sleek 2 cm floor shadow gap so bottom LED shines onto the floor
+    const panelBotY = state.fullHeightPanel ? (state.ledBottom ? 0.02 : 0.0) : botY;
+    const panelH = topY - panelBotY;
+    const panelMidY = (topY + panelBotY) / 2;
+
+    const fullLeftX = startX;
+    const fullRightX = state.fullWidthPanel ? W : (startX + totalConstructW);
+    const fullSpanW = fullRightX - fullLeftX;
+
+    if (state.fullWidthPanel) {
+      // ONE continuous white 12mm decor panel from glass door frame all the way to the right wall
+      const fullCx = fullLeftX + fullSpanW / 2;
+      const bLenX = Math.max(0.2, fullSpanW - insetSide * 2);
+      const topBattenY = topY - insetTop - battenW / 2;
+      const botBattenY = panelBotY + insetBot + battenW / 2;
+      const midBattenY = (topBattenY + botBattenY) / 2;
+
+      rootGroup.add(makeBox(bLenX, battenW, 0.010, mats.battenWood, fullCx, topBattenY, zBatten));
+      rootGroup.add(makeBox(bLenX, battenW, 0.010, mats.battenWood, fullCx, midBattenY, zBatten));
+      rootGroup.add(makeBox(bLenX, battenW, 0.010, mats.battenWood, fullCx, botBattenY, zBatten));
+
+      // Vertical stiles across the full span
+      const vLen = topBattenY - botBattenY - battenW;
+      if (vLen > 0.1) {
+        const numVerts = 5;
+        for (let v = 0; v < numVerts; v++) {
+          const vx = (fullCx - bLenX / 2 + battenW / 2) + (v / (numVerts - 1)) * (bLenX - battenW);
+          rootGroup.add(makeBox(battenW, vLen, 0.010, mats.battenWood, vx, midBattenY, zBatten));
+        }
+      }
+
+      // Continuous 12 mm white decor panel
+      rootGroup.add(makeBox(fullSpanW, panelH, 0.012, mats.decorWhite, fullCx, panelMidY, zPanel));
+
+      // 3 Mirrors mounted onto the continuous panel
+      for (let i = 0; i < 3; i++) {
+        const cx = startX + i * (mirrorW + gap) + mirrorW / 2;
+        rootGroup.add(makeBox(mirrorW - (gap === 0 ? 0.002 : 0.004), mirrorH - 0.004, 0.004, mats.mirror, cx, midY, zMirror));
+      }
+    } else {
+      // Individual decor panels for each mirror + right hook panel
+      for (let i = 0; i < 3; i++) {
+        const cx = startX + i * (mirrorW + gap) + mirrorW / 2;
+        const bLenX = mirrorW - insetSide * 2;
+        const topBattenY = topY - insetTop - battenW / 2;
+        const botBattenY = panelBotY + insetBot + battenW / 2;
+        const midBattenY = (topBattenY + botBattenY) / 2;
+
+        rootGroup.add(makeBox(bLenX, battenW, 0.010, mats.battenWood, cx, topBattenY, zBatten));
+        rootGroup.add(makeBox(bLenX, battenW, 0.010, mats.battenWood, cx, midBattenY, zBatten));
+        rootGroup.add(makeBox(bLenX, battenW, 0.010, mats.battenWood, cx, botBattenY, zBatten));
+
+        const vLen = topBattenY - botBattenY - battenW;
+        if (vLen > 0.1) {
+          rootGroup.add(makeBox(battenW, vLen, 0.010, mats.battenWood, cx - bLenX / 2 + battenW / 2, midBattenY, zBatten));
+          rootGroup.add(makeBox(battenW, vLen, 0.010, mats.battenWood, cx + bLenX / 2 - battenW / 2, midBattenY, zBatten));
+        }
+
+        // 12 mm White Decor Chipboard Panel
+        rootGroup.add(makeBox(mirrorW, panelH, 0.012, mats.decorWhite, cx, panelMidY, zPanel));
+
+        // 4 mm Mirror glued onto decor panel
+        rootGroup.add(makeBox(mirrorW - (gap === 0 ? 0.002 : 0.006), mirrorH - 0.006, 0.004, mats.mirror, cx, midY, zMirror));
+      }
+    }
+
+    // Build Right Hook / Wardrobe Zone (uses remaining width when fullWidthPanel is active, or hookW)
+    const hookZoneLeft = startX + totalMirrorsW + gap;
+    const effectiveHookW = state.fullWidthPanel ? Math.max(0.18, W - hookZoneLeft) : hookW;
+    const hookCx = hookZoneLeft + effectiveHookW / 2;
+
+    if (!state.fullWidthPanel) {
+      const hbLenX = Math.max(0.08, effectiveHookW - insetSide * 2);
+      const hTopY = topY - insetTop - battenW / 2;
+      const hBotY = panelBotY + insetBot + battenW / 2;
+
+      rootGroup.add(makeBox(hbLenX, battenW, 0.010, mats.battenWood, hookCx, hTopY, zBatten));
+      rootGroup.add(makeBox(hbLenX, battenW, 0.010, mats.battenWood, hookCx, (hTopY + hBotY) / 2, zBatten));
+      rootGroup.add(makeBox(hbLenX, battenW, 0.010, mats.battenWood, hookCx, hBotY, zBatten));
+      rootGroup.add(makeBox(effectiveHookW, panelH, 0.012, mats.decorWhite, hookCx, panelMidY, zPanel));
+    }
+
+    // Black coat hooks (arranged cleanly in upper area)
+    const hookY = state.shelfOn ? topY - 0.24 : topY - 0.18;
+    const nHooks = state.hookCount;
+    const hookSpan = Math.max(0.10, effectiveHookW - 0.10);
+    for (let h = 0; h < nHooks; h++) {
+      const frac = nHooks === 1 ? 0.5 : h / (nHooks - 1);
+      const hx = hookCx - hookSpan / 2 + frac * hookSpan;
+      rootGroup.add(makeBox(0.022, 0.065, 0.006, mats.hookBlack, hx, hookY, zHooks + 0.003));
+      rootGroup.add(makeBox(0.014, 0.014, 0.055, mats.hookBlack, hx, hookY - 0.015, zHooks + 0.030));
+      rootGroup.add(makeBox(0.014, 0.032, 0.012, mats.hookBlack, hx, hookY - 0.002, zHooks + 0.055));
+    }
+
+    // Optional white shelf above hooks (flush with top edge of mirror/panel)
+    if (state.shelfOn) {
+      const shelfD = 0.18;
+      const shelfT = 0.019;
+      const shelfY = topY - shelfT / 2;
+      rootGroup.add(makeBox(effectiveHookW, shelfT, shelfD, mats.decorWhite, hookCx, shelfY, zHooks + shelfD / 2));
+      for (const side of [-1, 1]) {
+        const bx = hookCx + side * (effectiveHookW * 0.32);
+        rootGroup.add(makeBox(0.014, 0.09, 0.014, mats.hookBlack, bx, shelfY - 0.05, zHooks + 0.007));
+        rootGroup.add(makeBox(0.014, 0.014, shelfD * 0.72, mats.hookBlack, bx, shelfY - 0.016, zHooks + shelfD * 0.36));
+      }
+    }
+
+    // LED Strips & Indirect Glow (Top, Left, Right, Bottom — individually combinable!)
+    const ledZ = zBatten + 0.004;
+    const ledIntensity = state.eveningMode ? 0.85 : 0.48;
+    const ledLenH = Math.max(0.2, fullSpanW - 0.04);
+    const ledCxH = fullLeftX + fullSpanW / 2;
+    const ledLenV = Math.max(0.2, panelH - 0.04);
+
+    if (state.ledTop) {
+      rootGroup.add(makeBox(ledLenH, 0.012, 0.010, mats.ledStrip, ledCxH, topY - insetTop / 2, ledZ));
+      const glowTop = new THREE.Mesh(new THREE.PlaneGeometry(ledLenH + 0.14, 0.40), mats.ledGlow);
+      glowTop.position.set(ledCxH, topY + 0.18, 0.003);
+      rootGroup.add(glowTop);
+      for (const f of [0.2, 0.5, 0.8]) {
+        const pl = new THREE.PointLight(0xffd79b, ledIntensity, 1.5, 1.7);
+        pl.position.set(fullLeftX + fullSpanW * f, topY + 0.06, 0.08);
+        rootGroup.add(pl);
+      }
+    }
+
+    if (state.ledLeft) {
+      const lx = fullLeftX + insetSide / 2;
+      rootGroup.add(makeBox(0.012, ledLenV, 0.010, mats.ledStrip, lx, panelMidY, ledZ));
+      const glowLeft = new THREE.Mesh(new THREE.PlaneGeometry(ledLenV + 0.10, 0.34), mats.ledGlow);
+      glowLeft.rotation.z = Math.PI / 2;
+      // Place slightly in front of door frame when doorGap is 0 so light wash is clearly visible
+      const glowLeftZ = state.doorGap < 0.01 ? 0.016 : 0.004;
+      glowLeft.position.set(fullLeftX - 0.15, panelMidY, glowLeftZ);
+      rootGroup.add(glowLeft);
+      for (const f of [0.25, 0.75]) {
+        const pl = new THREE.PointLight(0xffd79b, ledIntensity * 0.9, 1.35, 1.8);
+        pl.position.set(fullLeftX - 0.04, panelBotY + panelH * f, 0.09);
+        rootGroup.add(pl);
+      }
+    }
+
+    if (state.ledRight) {
+      const rx = fullRightX - insetSide / 2;
+      rootGroup.add(makeBox(0.012, ledLenV, 0.010, mats.ledStrip, rx, panelMidY, ledZ));
+      if (fullRightX < W - 0.025) {
+        // Glow onto grey accent wall to the right
+        const glowRight = new THREE.Mesh(new THREE.PlaneGeometry(ledLenV + 0.10, 0.34), mats.ledGlow);
+        glowRight.rotation.z = -Math.PI / 2;
+        glowRight.position.set(fullRightX + 0.14, panelMidY, 0.004);
+        rootGroup.add(glowRight);
+      }
+      // Also cast soft glow wash onto the right white side wall (X = W)
+      const cornerGlow = new THREE.Mesh(new THREE.PlaneGeometry(ledLenV + 0.08, 0.38), mats.ledGlow);
+      cornerGlow.rotation.y = -Math.PI / 2;
+      cornerGlow.rotation.z = Math.PI / 2;
+      cornerGlow.position.set(W - 0.004, panelMidY, 0.19);
+      rootGroup.add(cornerGlow);
+
+      for (const f of [0.25, 0.75]) {
+        const pl = new THREE.PointLight(0xffd79b, ledIntensity * 0.95, 1.4, 1.8);
+        pl.position.set(Math.min(W - 0.04, fullRightX + 0.02), panelBotY + panelH * f, 0.09);
+        rootGroup.add(pl);
+      }
+    }
+
+    if (state.ledBottom) {
+      rootGroup.add(makeBox(ledLenH, 0.012, 0.010, mats.ledStrip, ledCxH, panelBotY + insetBot / 2, ledZ));
+      if (state.fullHeightPanel) {
+        // Floor wash glow right under the 2 cm shadow gap
+        const floorGlow = new THREE.Mesh(new THREE.PlaneGeometry(ledLenH + 0.10, 0.42), mats.ledGlow);
+        floorGlow.rotation.x = -Math.PI / 2;
+        floorGlow.position.set(ledCxH, 0.004, 0.21);
+        rootGroup.add(floorGlow);
+      } else {
+        const glowBot = new THREE.Mesh(new THREE.PlaneGeometry(ledLenH + 0.10, 0.34), mats.ledGlow);
+        glowBot.rotation.z = Math.PI;
+        glowBot.position.set(ledCxH, panelBotY - 0.15, 0.004);
+        rootGroup.add(glowBot);
+      }
+      for (const f of [0.25, 0.5, 0.75]) {
+        const pl = new THREE.PointLight(0xffd79b, ledIntensity * 0.85, 1.3, 1.8);
+        pl.position.set(fullLeftX + fullSpanW * f, Math.max(0.05, panelBotY - 0.05), 0.09);
+        rootGroup.add(pl);
+      }
+    }
+
+    if (state.ledBetween && gap > 0.003) {
+      // Vertical LED light strips inside the gaps between mirrors (and before hook panel)
+      for (let i = 0; i < 3; i++) {
+        const gx = startX + (i + 1) * mirrorW + i * gap + gap / 2;
+        rootGroup.add(makeBox(Math.min(gap * 0.6, 0.010), ledLenV, 0.008, mats.ledStrip, gx, panelMidY, zPanel - 0.002));
+        const pl = new THREE.PointLight(0xffd79b, ledIntensity * 0.45, 0.85, 2.0);
+        pl.position.set(gx, midY, 0.06);
+        rootGroup.add(pl);
+      }
+    }
+
+    // 7. EXISTING BENCH (Cashmere, 130 cm long, 45 cm deep, 16 mm thickness everywhere)
+    const wallFrontZ = 0.026; // front face of mirrors
+    const benchL = 1.30;
+    const benchD = 0.45;
+    // JYSK BILLUND 3+3 real dimensions: 153 cm wide, 39 cm deep, 74 cm high (plinth 8 cm, top 2 cm, 3 drawer rows)
+    const dresserL = 1.53;
+    const dresserD = 0.39;
+    const dresserH = 0.74;
+    const plinthH = 0.08;
+    const dresserTopT = 0.018;
+    const drawerRowH = (dresserH - plinthH - dresserTopT) / 3;
+    const benchH = plinthH + 2 * drawerRowH; // ~50.8 cm: exact top edge of 2nd drawer!
+    const t = 0.016;     // 16 mm board thickness everywhere
+
+    if (state.benchOn) {
+      const benchGroup = new THREE.Group();
+      const bxRight = W;
+      const bxLeft = W - benchL;
+      const bzBack = wallFrontZ + 0.005;
+
+      // Top seat board (runs all the way to the right wall)
+      benchGroup.add(makeBox(benchL, t, benchD, mats.cashmere, bxLeft + benchL / 2, benchH - t / 2, bzBack + benchD / 2));
+
+      // Left outer side wall (full depth 45 cm)
+      const sideH = benchH - t;
+      benchGroup.add(makeBox(t, sideH, benchD, mats.cashmere, bxLeft + t / 2, sideH / 2, bzBack + benchD / 2));
+
+      // Visible right outer side wall: flush with the front edge of the BILLUND dresser (X = W - 39 cm)
+      const flushWallX = W - dresserD + t / 2;
+      benchGroup.add(makeBox(t, sideH, benchD, mats.cashmere, flushWallX, sideH / 2, bzBack + benchD / 2));
+
+      // Hidden inner support wall at the very right end in the corner (for stability behind the dresser)
+      benchGroup.add(makeBox(t, sideH, benchD, mats.cashmere, bxRight - t / 2, sideH / 2, bzBack + benchD / 2));
+
+      // Inner divider wall: 40 cm from left outer wall, recessed 4 cm from front!
+      const innerX = bxLeft + 0.40 + t / 2;
+      const innerD = benchD - 0.04; // 41 cm deep (4 cm recessed from front edge)
+      benchGroup.add(makeBox(t, sideH, innerD, mats.cashmere, innerX, sideH / 2, bzBack + innerD / 2));
+
+      // Middle shelf between left outer wall and inner divider (half height)
+      const shelfSpanW = 0.40 - t;
+      const shelfMidY = benchH / 2;
+      benchGroup.add(makeBox(shelfSpanW, t, innerD, mats.cashmere, bxLeft + t + shelfSpanW / 2, shelfMidY, bzBack + innerD / 2));
+
+      rootGroup.add(benchGroup);
+    }
+
+    // 8. EXISTING DRESSER (JYSK BILLUND 3+3, Travertin/Beige, 153 × 39 × 74 cm, flush with bench)
+    if (state.dresserOn) {
+      const dzStart = wallFrontZ + 0.005 + benchD; // flush with bench front!
+      const dxCenter = W - dresserD / 2;
+      const dzCenter = dzStart + dresserL / 2;
+      const sideT = 0.018;
+
+      const dGroup = new THREE.Group();
+
+      // Carcass: top plate, 2 side panels, back panel, recessed plinth (travertine look)
+      dGroup.add(makeBox(dresserD, dresserTopT, dresserL, mats.travertine, dxCenter, dresserH - dresserTopT / 2, dzCenter));
+      dGroup.add(makeBox(dresserD, dresserH - dresserTopT, sideT, mats.travertine, dxCenter, (dresserH - dresserTopT) / 2, dzStart + sideT / 2));
+      dGroup.add(makeBox(dresserD, dresserH - dresserTopT, sideT, mats.travertine, dxCenter, (dresserH - dresserTopT) / 2, dzStart + dresserL - sideT / 2));
+      // Inner recessed carcass body (behind drawers)
+      dGroup.add(makeBox(dresserD - 0.035, dresserH - plinthH - dresserTopT, dresserL - sideT * 2, mats.travertineShadow, W - (dresserD - 0.035) / 2, plinthH + (dresserH - plinthH - dresserTopT) / 2, dzCenter));
+      // Slightly recessed plinth strip at bottom (travertine)
+      dGroup.add(makeBox(dresserD - 0.025, plinthH, dresserL - sideT * 2, mats.travertine, W - (dresserD - 0.025) / 2, plinthH / 2, dzCenter));
+
+      // 3+3 Drawer fronts (2 columns × 3 rows) facing -X (into hallway)
+      const innerSpanZ = dresserL - sideT * 2 - 0.012;
+      const colGap = 0.008;
+      const colW = (innerSpanZ - colGap) / 2;
+      const gripGap = 0.022; // recessed handle grip groove above lower drawers
+
+      for (let col = 0; col < 2; col++) {
+        const cz = dzStart + sideT + 0.006 + col * (colW + colGap) + colW / 2;
+        for (let row = 0; row < 3; row++) {
+          const rowBot = plinthH + row * drawerRowH;
+          const frontH = drawerRowH - gripGap;
+          const frontY = rowBot + frontH / 2 + 0.004;
+          dGroup.add(makeBox(0.018, frontH, colW, mats.travertineFront, W - dresserD + 0.009, frontY, cz));
+        }
+      }
+
+      rootGroup.add(dGroup);
+    }
+
+    // 9. EXISTING TALL CABINET (Corner between Living Room Glass Door & Bathroom, back to North wall Z=0)
+    // Fits snugly into X = 0 .. glassLeft (~68 cm wide), 200 cm high, 38 cm deep, 2 handleless doors (1 white gloss, 1 mirror)
+    if (state.tallCabinetOn && glassLeft > 0.35) {
+      const cabW = Math.max(0.45, glassLeft - 0.02);
+      const cabH = 2.00;
+      const cabD = 0.38;
+      const cabCx = cabW / 2 + 0.005;
+      const cabGroup = new THREE.Group();
+
+      // Main white gloss carcass (slightly recessed behind doors)
+      cabGroup.add(makeBox(cabW, cabH, cabD - 0.02, mats.whiteGloss, cabCx, cabH / 2, (cabD - 0.02) / 2));
+
+      // Recessed center grip groove (vertical handleless channel between the 2 doors)
+      const grooveW = 0.024;
+      cabGroup.add(makeBox(grooveW, cabH - 0.06, 0.016, mats.whiteGlossGroove, cabCx, cabH / 2, cabD - 0.022));
+
+      // Left door: White High-Gloss
+      const doorW = (cabW - grooveW - 0.008) / 2;
+      const doorH = cabH - 0.03;
+      const leftDoorCx = cabCx - grooveW / 2 - doorW / 2;
+      cabGroup.add(makeBox(doorW, doorH, 0.018, mats.whiteGloss, leftDoorCx, cabH / 2 + 0.005, cabD - 0.009));
+
+      // Right door: Mirror front on white gloss backing
+      const rightDoorCx = cabCx + grooveW / 2 + doorW / 2;
+      cabGroup.add(makeBox(doorW, doorH, 0.016, mats.whiteGloss, rightDoorCx, cabH / 2 + 0.005, cabD - 0.010));
+      cabGroup.add(makeBox(doorW - 0.004, doorH - 0.004, 0.004, mats.mirror, rightDoorCx, cabH / 2 + 0.005, cabD));
+
+      rootGroup.add(cabGroup);
+    }
+
+    // 10. EXISTING SHOE CABINET / COMMMODE (Between Kitchen Door & Entry Door on South wall Z=D)
+    // Same handleless White High-Gloss series, 30 cm deep, fits snugly between the two doors (~96 cm wide)
+    if (state.shoeCabinetOn && (entryLeft - kitchenRight) > 0.45) {
+      const spanW = entryLeft - kitchenRight;
+      const shoeW = spanW - 0.04;
+      const shoeH = 0.96;
+      const shoeD = 0.30;
+      const shoeCx = kitchenRight + spanW / 2;
+      const shoeZBack = D; // against South (entry) wall, facing -Z into hallway
+      const sGroup = new THREE.Group();
+
+      // Carcass
+      sGroup.add(makeBox(shoeW, shoeH, shoeD - 0.02, mats.whiteGloss, shoeCx, shoeH / 2, shoeZBack - (shoeD - 0.02) / 2));
+
+      // Top drawer (handleless with horizontal grip groove below)
+      const plinth = 0.05;
+      const topDrH = 0.19;
+      const grooveH = 0.022;
+      const lowerH = shoeH - plinth - topDrH - grooveH - 0.02;
+
+      // Shadow grooves
+      sGroup.add(makeBox(shoeW - 0.02, grooveH, 0.016, mats.whiteGlossGroove, shoeCx, shoeH - topDrH - grooveH / 2 - 0.01, shoeZBack - shoeD + 0.022));
+      const vGrooveW = 0.022;
+      sGroup.add(makeBox(vGrooveW, lowerH, 0.016, mats.whiteGlossGroove, shoeCx, plinth + lowerH / 2, shoeZBack - shoeD + 0.022));
+
+      // Top drawer front (white gloss)
+      sGroup.add(makeBox(shoeW - 0.008, topDrH, 0.018, mats.whiteGloss, shoeCx, shoeH - topDrH / 2 - 0.01, shoeZBack - shoeD + 0.009));
+
+      // 2 Lower handleless doors (white gloss)
+      const sDoorW = (shoeW - vGrooveW - 0.012) / 2;
+      sGroup.add(makeBox(sDoorW, lowerH, 0.018, mats.whiteGloss, shoeCx - vGrooveW / 2 - sDoorW / 2, plinth + lowerH / 2, shoeZBack - shoeD + 0.009));
+      sGroup.add(makeBox(sDoorW, lowerH, 0.018, mats.whiteGloss, shoeCx + vGrooveW / 2 + sDoorW / 2, plinth + lowerH / 2, shoeZBack - shoeD + 0.009));
+
+      rootGroup.add(sGroup);
+    }
+
+    updateBOM();
+  }
+
+  // ---------------- BOM CALCULATION ----------------
+  function updateBOM() {
+    const mW = Math.round(state.mirrorW * 100);
+    const mH = Math.round(state.mirrorH * 100);
+    const hW = Math.round(state.hookW * 100);
+    const entryLeft = state.roomW - 0.20 - 0.90;
+    const glassRight = entryLeft - 1.00;
+    const availW = Math.max(0.5, state.roomW - (glassRight + state.doorGap));
+    const totalW_m = state.fullWidthPanel ? availW : (3 * state.mirrorW + state.hookW + 3 * state.mirrorGap);
+    const panelH_m = state.fullHeightPanel ? state.zargeTop : state.mirrorH;
+    const panelH_cm = Math.round(panelH_m * 100);
+    const wallArea = state.roomW * state.roomH - 0.90 * state.zargeTop;
+
+    const battenMeters = Math.ceil(
+      (3 * totalW_m + 6 * (panelH_m - 0.1)) * 1.15
+    );
+    const decorArea = state.fullWidthPanel
+      ? (totalW_m * panelH_m) + (state.shelfOn ? state.hookW * 0.18 : 0)
+      : (3 * state.mirrorW * panelH_m) + (state.hookW * panelH_m) + (state.shelfOn ? state.hookW * 0.18 : 0);
+
+    let ledLenRaw = 0;
+    const ledSides = [];
+    if (state.ledTop) { ledLenRaw += totalW_m; ledSides.push('Oben'); }
+    if (state.ledLeft) { ledLenRaw += panelH_m; ledSides.push('Links'); }
+    if (state.ledRight) { ledLenRaw += panelH_m; ledSides.push('Rechts'); }
+    if (state.ledBottom) { ledLenRaw += totalW_m; ledSides.push('Unten'); }
+    if (state.ledBetween && state.mirrorGap > 0.003) { ledLenRaw += 3 * panelH_m; ledSides.push('Fugen'); }
+    const ledMeters = Math.ceil(ledLenRaw * 10) / 10;
+
+    const panelDesc = state.fullWidthPanel
+      ? `Dekor-Spanplatte weiß 12 mm durchgehend (${Math.round(totalW_m*100)} × ${panelH_cm} cm, ggf. 2-teilig stoßverleimt, ABS-Kante)`
+      : `Dekor-Spanplatte weiß 12 mm (3× ${mW}×${panelH_cm} cm + 1× ${hW}×${panelH_cm} cm, ABS-Kante weiß)`;
+
+    const items = [
+      {
+        name: `Spiegelglas 4 mm, Kanten poliert (${mW} × ${mH} cm)`,
+        qty: '3 Stk',
+        price: Math.round(3 * (state.mirrorW * state.mirrorH * 68))
+      },
+      {
+        name: panelDesc,
+        qty: `${decorArea.toFixed(2)} m²`,
+        price: Math.round(decorArea * 28 + 25)
+      },
+      {
+        name: `Unterkonstruktion Latten 10 × 40 mm gehobelt (Fichte/Kiefer)`,
+        qty: `${battenMeters} lfm`,
+        price: Math.round(battenMeters * 1.6)
+      },
+      {
+        name: `Neutralvernetzender Spiegelkleber (310 ml Kartusche, z.B. Ottoseal S16)`,
+        qty: '3 Stk',
+        price: 36
+      },
+      {
+        name: `Doppelseitiges Spiegelklebeband (Soforthaftung, 19 mm × 5 m)`,
+        qty: '2 Rollen',
+        price: 16
+      },
+      {
+        name: `LED-Strip Warmweiß 3000K + Alu-Profil + Opal-Diffusor + 24V Netzteil`,
+        qty: `${ledMeters.toFixed(1)} m Set`,
+        price: Math.round(28 + ledMeters * 14)
+      },
+      {
+        name: `Kleiderhaken Metall matt-schwarz (inkl. Schrauben)`,
+        qty: `${state.hookCount} Stk`,
+        price: state.hookCount * 6
+      },
+      ...(state.shelfOn ? [{
+        name: `Weiße Ablage 19 mm (${hW} × 18 cm) + 2× schwarze Winkel/Tablarträger`,
+        qty: '1 Set',
+        price: 22
+      }] : []),
+      {
+        name: `Fischer DuoPower 6×50 Dübel + Senkkopfschrauben 4,5×45 (Wand) & 3,5×20 (Platte)`,
+        qty: '1 Paket-Set',
+        price: 24
+      },
+      {
+        name: `Wandfarbe Grau mit leichtem Lila-Stich (matt, ca. ${wallArea.toFixed(1)} m², 2 Anstriche)`,
+        qty: '2,5 L Eimer',
+        price: 32
+      },
+      {
+        name: `Abklebeband (Frogtape), Abdeckfolie, Verglasungsklötze (Ausgleich)`,
+        qty: '1 Set',
+        price: 18
+      }
+    ];
+
+    const tbody = document.querySelector('#bomTable tbody');
+    tbody.innerHTML = '';
+    let sum = 0;
+    for (const it of items) {
+      sum += it.price;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${it.name}</td><td class="num">${it.qty}</td><td class="num">${it.price} €</td>`;
+      tbody.appendChild(tr);
+    }
+    document.getElementById('bomSum').textContent = `~ ${sum} €`;
+    window.__lastBomItems = { items, sum };
+  }
+
+  // ---------------- CAMERA PRESETS ----------------
+  const camPresets = {
+    entry:   () => ({ pos: [state.roomW - 0.65, 1.58, state.roomD + 0.55], target: [state.roomW * 0.62, 1.15, 0.15] }),
+    front:   () => ({ pos: [state.roomW * 0.65, 1.28, state.roomD * 1.18], target: [state.roomW * 0.65, 1.15, 0.0] }),
+    detail:  () => ({ pos: [state.roomW - 1.55, 1.35, 1.55], target: [state.roomW - 0.55, 0.95, 0.35] }),
+    top:     () => ({ pos: [state.roomW / 2, 4.9, state.roomD * 0.72], target: [state.roomW / 2, 0.2, state.roomD / 2] }),
+    explode: () => {
+      document.getElementById('inExplode').value = 75;
+      state.explode = 75;
+      document.getElementById('valExplode').textContent = '75 %';
+      rebuildScene();
+      return { pos: [state.roomW - 1.9, 1.85, 1.35], target: [state.roomW - 0.85, 1.55, 0.18] };
+    }
+  };
+
+  let camAnim = null;
+  function moveCamera(presetKey) {
+    const p = camPresets[presetKey]();
+    camAnim = {
+      startPos: camera.position.clone(),
+      endPos: new THREE.Vector3(...p.pos),
+      startTgt: controls.target.clone(),
+      endTgt: new THREE.Vector3(...p.target),
+      t: 0
+    };
+    document.querySelectorAll('.hud-pill[data-cam]').forEach(b => {
+      b.classList.toggle('active', b.dataset.cam === presetKey);
+    });
+  }
+
+  // ---------------- UI BINDINGS ----------------
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function bindRange(id, key, valId, scale, suffix) {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      state[key] = v * scale;
+      valEl.textContent = `${v} ${suffix}`;
+      rebuildScene();
+    });
+  }
+
+  bindRange('inExplode', 'explode', 'valExplode', 1, '%');
+  bindRange('inMirrorW', 'mirrorW', 'valMirrorW', 0.01, 'cm');
+  bindRange('inMirrorH', 'mirrorH', 'valMirrorH', 0.01, 'cm');
+  bindRange('inMirrorGap', 'mirrorGap', 'valMirrorGap', 0.01, 'cm');
+  bindRange('inDoorGap', 'doorGap', 'valDoorGap', 0.01, 'cm');
+  bindRange('inHookW', 'hookW', 'valHookW', 0.01, 'cm');
+  bindRange('inHookCount', 'hookCount', 'valHookCount', 1, 'Stk');
+  bindRange('inBattenInset', 'battenInset', 'valBattenInset', 0.01, 'cm');
+  bindRange('inRoomW', 'roomW', 'valRoomW', 0.01, 'cm');
+  bindRange('inRoomD', 'roomD', 'valRoomD', 0.01, 'cm');
+  bindRange('inRoomH', 'roomH', 'valRoomH', 0.01, 'cm');
+  bindRange('inZargeTop', 'zargeTop', 'valZargeTop', 0.01, 'cm');
+
+  function bindCheck(id, key, onChange) {
+    const el = document.getElementById(id);
+    el.addEventListener('change', () => {
+      state[key] = el.checked;
+      if (onChange) onChange(el.checked);
+      else rebuildScene();
+    });
+  }
+
+  bindCheck('inEveningMode', 'eveningMode');
+  bindCheck('inLedTop', 'ledTop');
+  bindCheck('inLedLeft', 'ledLeft');
+  bindCheck('inLedRight', 'ledRight');
+  bindCheck('inLedBottom', 'ledBottom');
+  bindCheck('inLedBetween', 'ledBetween');
+  bindCheck('inFullWidthPanel', 'fullWidthPanel');
+  bindCheck('inFullHeightPanel', 'fullHeightPanel');
+  bindCheck('inShelfOn', 'shelfOn');
+  bindCheck('inCutaway', 'cutaway');
+  bindCheck('inBenchOn', 'benchOn');
+  bindCheck('inDresserOn', 'dresserOn');
+  bindCheck('inTallCabinetOn', 'tallCabinetOn');
+  bindCheck('inShoeCabinetOn', 'shoeCabinetOn');
+
+  document.querySelectorAll('.gap-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = parseFloat(btn.dataset.gap);
+      state.mirrorGap = g * 0.01;
+      document.getElementById('inMirrorGap').value = g;
+      document.getElementById('valMirrorGap').textContent = `${g} cm`;
+      rebuildScene();
+    });
+  });
+
+  document.querySelectorAll('.doorgap-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = parseFloat(btn.dataset.dgap);
+      state.doorGap = g * 0.01;
+      document.getElementById('inDoorGap').value = g;
+      document.getElementById('valDoorGap').textContent = `${g} cm`;
+      rebuildScene();
+    });
+  });
+  bindCheck('inDoorsOpen', 'doorsOpen', (checked) => {
+    targetDoorFactor = checked ? 1 : 0;
+    if (checked && state.cutaway) {
+      // show doors clearly when opening
+      state.cutaway = false;
+      document.getElementById('inCutaway').checked = false;
+      rebuildScene();
+    }
+  });
+
+  document.getElementById('inWallColor').addEventListener('input', (e) => {
+    state.wallColor = e.target.value;
+    rebuildScene();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    Object.assign(state, DEFAULTS);
+    document.getElementById('inExplode').value = 0; document.getElementById('valExplode').textContent = '0 %';
+    document.getElementById('inMirrorW').value = 55; document.getElementById('valMirrorW').textContent = '55 cm';
+    document.getElementById('inMirrorH').value = 170; document.getElementById('valMirrorH').textContent = '170 cm';
+    document.getElementById('inMirrorGap').value = 1.5; document.getElementById('valMirrorGap').textContent = '1.5 cm';
+    document.getElementById('inDoorGap').value = 0; document.getElementById('valDoorGap').textContent = '0 cm';
+    document.getElementById('inHookW').value = 34; document.getElementById('valHookW').textContent = '34 cm';
+    document.getElementById('inHookCount').value = 3; document.getElementById('valHookCount').textContent = '3 Stk';
+    document.getElementById('inBattenInset').value = 4; document.getElementById('valBattenInset').textContent = '4.0 cm';
+    document.getElementById('inRoomW').value = 370; document.getElementById('valRoomW').textContent = '370 cm';
+    document.getElementById('inRoomD').value = 200; document.getElementById('valRoomD').textContent = '200 cm';
+    document.getElementById('inRoomH').value = 250; document.getElementById('valRoomH').textContent = '250 cm';
+    document.getElementById('inZargeTop').value = 205; document.getElementById('valZargeTop').textContent = '205 cm';
+    document.getElementById('inWallColor').value = DEFAULTS.wallColor;
+    document.getElementById('inEveningMode').checked = false;
+    document.getElementById('inLedTop').checked = true;
+    document.getElementById('inLedLeft').checked = false;
+    document.getElementById('inLedRight').checked = false;
+    document.getElementById('inLedBottom').checked = false;
+    document.getElementById('inLedBetween').checked = false;
+    document.getElementById('inFullWidthPanel').checked = false;
+    document.getElementById('inFullHeightPanel').checked = false;
+    document.getElementById('inShelfOn').checked = true;
+    document.getElementById('inCutaway').checked = true;
+    document.getElementById('inDoorsOpen').checked = false;
+    document.getElementById('inBenchOn').checked = true;
+    document.getElementById('inDresserOn').checked = true;
+    document.getElementById('inTallCabinetOn').checked = true;
+    document.getElementById('inShoeCabinetOn').checked = true;
+    targetDoorFactor = 0;
+    rebuildScene();
+    moveCamera('entry');
+  });
+
+  document.querySelectorAll('.hud-pill[data-cam]').forEach(btn => {
+    btn.addEventListener('click', () => moveCamera(btn.dataset.cam));
+  });
+
+  // Auto-collapse sidebar on mobile screens so 3D view is immediately visible
+  if (window.innerWidth < 768) {
+    document.getElementById('sidebar').classList.add('collapsed');
+  }
+
+  document.getElementById('btnToggleSidebar').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+    setTimeout(onResize, 260);
+  });
+
+  document.getElementById('btnSnapshot').addEventListener('click', () => {
+    renderer.render(scene, camera);
+    const link = document.createElement('a');
+    link.download = 'flur-3d-ansicht.png';
+    link.href = renderer.domElement.toDataURL('image/png');
+    link.click();
+  });
+
+  document.getElementById('btnCopyBom').addEventListener('click', async () => {
+    if (!window.__lastBomItems) return;
+    const lines = window.__lastBomItems.items.map(i => `- ${i.name} | ${i.qty} | ca. ${i.price} €`);
+    lines.push(`\nGesamt ca. ${window.__lastBomItems.sum} €`);
+    await navigator.clipboard.writeText(lines.join('\n'));
+    const btn = document.getElementById('btnCopyBom');
+    btn.textContent = 'Kopiert ✓';
+    setTimeout(() => btn.textContent = 'Kopieren', 1500);
+  });
+
+  // ---------------- RESIZE & LOOP ----------------
+  function onResize() {
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  window.addEventListener('resize', onResize);
+
+  rebuildScene();
+  moveCamera('entry');
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    if (camAnim) {
+      camAnim.t = Math.min(1, camAnim.t + 0.055);
+      const ease = 1 - Math.pow(1 - camAnim.t, 3);
+      camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, ease);
+      controls.target.lerpVectors(camAnim.startTgt, camAnim.endTgt, ease);
+      if (camAnim.t >= 1) camAnim = null;
+    }
+
+    currentDoorFactor += (targetDoorFactor - currentDoorFactor) * 0.08;
+    for (const d of doorPivots) {
+      d.pivot.rotation.y = d.maxAngle * currentDoorFactor;
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+</body>
+</html>
